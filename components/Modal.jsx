@@ -1,25 +1,28 @@
+"use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { X, ClipboardList } from 'lucide-react';
 
-const Modal = ({ isOpen, onClose }) => {
-    const [inputData, setInputData] = useState('');
-    const modalRef = useRef(null); 
-
-    const handleInputChange = (e) => {
-        setInputData(e.target.value);
-    };
+const TaskModal = ({ isOpen, onClose, onConfirm }) => {
+    const [content, setContent] = useState('');
+    const [name, setname] = useState('');
+    const [priority, setPriority] = useState('Normal');
+    const modalRef = useRef(null);
 
     const handleConfirm = () => {
-        // onAction(inputData);
-        setInputData('');
+        if (!content.trim()) return;
+        onConfirm({ name, content, priority });
+        setContent('');
+        setname("")
+        setPriority('Normal');
         onClose();
     };
 
     const onEnterPress = (e) => {
-        if (e.keyCode == 13 && e.shiftKey == false) {
-          e.preventDefault();
-          handleConfirm();
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleConfirm();
         }
-      }
+    };
 
     const handleOutsideClick = (e) => {
         if (modalRef.current && !modalRef.current.contains(e.target)) {
@@ -29,54 +32,99 @@ const Modal = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         if (isOpen) {
-            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-            
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
-            document.body.classList.add('overflow-hidden'); 
+            document.body.classList.add('overflow-hidden');
             document.addEventListener('mousedown', handleOutsideClick);
         } else {
-            document.body.style.paddingRight = ''; 
             document.body.classList.remove('overflow-hidden');
         }
-
         return () => {
-            document.body.style.paddingRight = ''; 
             document.body.classList.remove('overflow-hidden');
             document.removeEventListener('mousedown', handleOutsideClick);
         };
     }, [isOpen]);
 
-    return (
-        <div className={`fixed smooth-entry inset-0 flex items-center justify-center ${isOpen ? 'z-50' : 'hidden'}`}>
-            {/* Background blur */}
-            <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
+    if (!isOpen) return null;
 
-            {/* Modal content */}
-            <div ref={modalRef} className="relative bg-white rounded-lg shadow-lg p-6 z-10">
-                <button className="absolute top-0 right-0 p-2" onClick={onClose}>
-                    X
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+
+            <div
+                ref={modalRef}
+                className="relative bg-white dark:bg-slate-950 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 z-10 animate-in zoom-in-95 duration-200"
+            >
+                <button className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" onClick={onClose}>
+                    <X size={20} />
                 </button>
-                <h1 className='text-2xl text-center font-semibold p-5'>add task</h1>
-                <input
-                    type="text"
-                    value={inputData}
-                    onKeyDown={onEnterPress}
-                    onChange={handleInputChange}
-                    placeholder="Write amount..."
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-                <button
-                    className="mt-4 bg-blue-500 w-full text-white px-4 py-2 rounded"
-                    onClick={handleConfirm}
-                >
-                    add 
-                    {/* {actionName} */}
-                </button>
+
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
+                        <ClipboardList size={24} />
+                    </div>
+                    <h1 className='text-xl font-bold'>Create New Task</h1>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Task name</label>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={name}
+                            onChange={(e) => setname(e.target.value)}
+                            placeholder="task name"
+                            className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        />
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Task Description</label>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={content}
+                            onKeyDown={onEnterPress}
+                            onChange={(e) => setContent(e.target.value)}
+                            placeholder="What needs to be done?"
+                            className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority Level</label>
+                        <div className="flex gap-2 mt-1">
+                            {['Low', 'Normal', 'High'].map((p) => (
+                                <button
+                                    key={p}
+                                    onClick={() => setPriority(p)}
+                                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${priority === p
+                                            ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800'
+                                            : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 flex gap-3">
+                    <button
+                        className="flex-1 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 px-4 py-3 rounded-xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={onClose}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        className="flex-2 bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                        onClick={handleConfirm}
+                    >
+                        Create Task
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
-export default Modal;
+export default TaskModal;
 
 

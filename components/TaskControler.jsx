@@ -2,31 +2,25 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { addTask, moveTask } from "@/store/lavaSlice";
-import { Plus, ArrowRight, Zap } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
+import TaskModal from "./Modal";
 
-export default function TaskController({ task, currentColumn, allColumns }) {
+export default function TaskController({ task, currentColumn }) {
     const dispatch = useDispatch();
-    const [isAdding, setIsAdding] = useState(false);
-    const [content, setContent] = useState("");
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // 1. Handle New Task Creation
-    const handleCreate = (e) => {
-        e.preventDefault();
-        if (!content.trim()) return;
-
+    const handleConfirmAdd = ({ content, priority, name }) => {
         const newTask = {
-            id: Date.now().toString(), // Local-first unique ID
+            id: `task-${Date.now()}`,
             content: content,
-            priority: "Normal",
+            priority: priority,
+            name: name,
             createdAt: new Date().toISOString(),
         };
 
         dispatch(addTask({ task: newTask, columnId: "todo" }));
-        setContent("");
-        setIsAdding(false);
     };
 
-    // 2. Handle Task Shifting (Next State)
     const shiftTask = (taskId, sourceCol) => {
         const states = ["todo", "ongoing", "review", "done"];
         const currentIndex = states.indexOf(sourceCol);
@@ -37,59 +31,42 @@ export default function TaskController({ task, currentColumn, allColumns }) {
                 taskId,
                 sourceCol,
                 destCol,
-                newIndex: 0 // Move to top of next column
+                newIndex: 0
             }));
         }
     };
 
-    // Render for "Add Task" mode
     if (!task) {
         return (
-            <div className="mb-6">
-                {isAdding ? (
-                    <form onSubmit={handleCreate} className="flex gap-2 animate-in fade-in zoom-in duration-200">
-                        <input
-                            autoFocus
-                            type="text"
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            placeholder="What needs to be done?"
-                            className="flex-1 px-4 py-2 text-sm bg-white dark:bg-slate-900 border border-blue-500 rounded-lg outline-none ring-2 ring-blue-500/10"
-                        />
-                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                            Add
-                        </button>
-                        <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-slate-500">
-                            Cancel
-                        </button>
-                    </form>
-                ) : (
-                    <button
-                        onClick={() => setIsAdding(true)}
-                        className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                        <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
-                            <Plus size={16} />
-                        </div>
-                        Create New Task
-                    </button>
-                )}
-            </div>
+            <>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                >
+                    <Plus size={18} />
+                    New Task
+                </button>
+
+                <TaskModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    onConfirm={handleConfirmAdd}
+                />
+            </>
         );
     }
 
-    // Render for "Shift Task" mode (used inside table rows)
+    // "SHIFT MODE" - Show the Advance button (used in tables)
     return (
         <button
             onClick={() => shiftTask(task.id, currentColumn)}
             disabled={currentColumn === "done"}
-            className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${currentColumn === "done"
-                    ? "text-slate-300 cursor-not-allowed"
-                    : "text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all ${currentColumn === "done"
+                ? "text-slate-300 bg-slate-100 dark:bg-slate-900 cursor-not-allowed"
+                : "text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40"
                 }`}
-            title="Move to next stage"
         >
-            <span className="text-xs font-bold">Advance</span>
+            <span className="text-xs font-bold uppercase tracking-tight">Advance</span>
             <ArrowRight size={14} />
         </button>
     );

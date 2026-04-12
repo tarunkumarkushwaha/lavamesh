@@ -93,7 +93,7 @@ export default function LocalVault() {
                 <table className="w-full text-left text-sm">
                   <thead className="text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-900">
                     <tr>
-                      <th className="px-6 py-3 font-medium">Task ID</th>
+                      <th className="px-6 py-3 font-medium">Task Name</th>
                       <th className="px-6 py-3 font-medium">Description</th>
                       <th className="px-6 py-3 font-medium">Priority</th>
                       <th className="px-6 py-3 font-medium">Actions</th>
@@ -103,7 +103,7 @@ export default function LocalVault() {
                     {columnTasks.length > 0 ? (
                       columnTasks.map((task) => (
                         <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                          <td className="px-6 py-4 font-mono text-xs text-slate-400">#{task.id.slice(0, 8)}</td>
+                          <td className="px-6 py-4 font-mono text-xs text-slate-400">{task.name}</td>
                           <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">{task.content}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold ${task.priority === 'High' ? 'bg-red-100 text-red-600 dark:bg-red-900/20' :
