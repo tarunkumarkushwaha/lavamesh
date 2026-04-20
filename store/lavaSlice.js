@@ -1,28 +1,17 @@
 import { createSlice } from '@reduxjs/toolkit';
-// const loadLocalData = () => {
-//   if (typeof window === "undefined") return null;
-//   const saved = localStorage.getItem("lava_vault_data");
-//   return saved ? JSON.parse(saved) : null;
-// };
-
-// const localData = loadLocalData();
 
 const initialState = {
   isHydrated: false,
-  role: 'peer',
+  userName: '',
+  role: 'unselected',
+  currentProjectId: null,
   vaultConnected: false,
   lastSynced: null,
-  project: {
-    id: "initial-project",
-    name: "New Project",
-    columns: {
-      'todo': { id: 'todo', title: 'To Do', taskIds: [] },
-      'ongoing': { id: 'ongoing', title: 'Ongoing', taskIds: [] },
-      'review': { id: 'review', title: 'Under Review', taskIds: [] },
-      'done': { id: 'done', title: 'Done', taskIds: [] },
-    },
-    tasks: {},
-  },
+  myPendingChanges: [],
+  isPeerMode: true,
+  proposals: [],
+  // This represents the ACTIVE project data for the UI
+  projects: {}, 
   persistence: {
     isDirty: false,
     lastSavedHash: null,
@@ -36,78 +25,168 @@ export const lavaSlice = createSlice({
   name: 'lava',
   initialState,
   reducers: {
-    hydrateVault: (state) => {
-      if (typeof window === "undefined") return;
-
-      const saved = localStorage.getItem("lava_vault_data");
-
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        delete parsed.isHydrated;
-        Object.assign(state, parsed);
-      }
-
-      state.isHydrated = true;
+    setRole: (state, action) => {
+      state.role = action.payload.role;
+      state.userName = action.payload.user;
     },
-    connectVault: (state, action) => {
-      state.vaultConnected = true;
+
+    // --- PROJECT MANAGEMENT ---
+    createProject: (state, action) => {
+      const { name, id, userName } = action.payload;
+      const newProject = {
+        id: id,
+        name: name,
+        tasks: {},
+        columns: {
+          'todo': { id: 'todo', title: 'To Do', taskIds: [] },
+          'ongoing': { id: 'ongoing', title: 'Ongoing', taskIds: [] },
+          'review': { id: 'review', title: 'Under Review', taskIds: [] },
+          'done': { id: 'done', title: 'Done', taskIds: [] },
+        },
+        columnOrder: ['todo', 'ongoing', 'review', 'done'],
+      };
+
+      state.projects[id] = newProject;
+      state.currentProjectId = id;
       state.role = 'admin';
-      state.project = action.payload;
-      state.persistence.isDirty = false; // Freshly loaded
-      state.persistence.lastSavedHash = JSON.stringify(action.payload);
+      state.userName = userName;
+      state.persistence.isDirty = true;
     },
 
+    connectVault: (state, action) => {
+      const incomingProject = action.payload;
+      state.projects[incomingProject.id] = incomingProject;
+      state.currentProjectId = incomingProject.id;
+      state.vaultConnected = true;
+      state.persistence.isDirty = false;
+      state.persistence.lastSavedHash = JSON.stringify(incomingProject);
+    },
+
+    selectProject: (state, action) => {
+    state.currentProjectId = action.payload;
+},
+
+    // --- TASK MANIPULATION (Dictionary Aware) ---
     addTask: (state, action) => {
       const { task, columnId } = action.payload;
-      state.project.tasks[task.id] = task;
-      state.project.columns[columnId].taskIds.push(task.id);
-      state.lastSynced = new Date().toISOString();
-      state.persistence.isDirty = true;
+      const project = state.projects[state.currentProjectId];
+      
+      if (project) {
+        project.tasks[task.id] = task;
+        project.columns[columnId].taskIds.push(task.id);
+        state.lastSynced = new Date().toISOString();
+        state.persistence.isDirty = true;
+      }
     },
 
     moveTask: (state, action) => {
       const { taskId, sourceCol, destCol, newIndex } = action.payload;
+      const project = state.projects[state.currentProjectId];
 
-      const sourceIds = state.project.columns[sourceCol].taskIds;
-      sourceIds.splice(sourceIds.indexOf(taskId), 1);
+      if (project) {
+        const sourceIds = project.columns[sourceCol].taskIds;
+        const taskIdx = sourceIds.indexOf(taskId);
+        if (taskIdx > -1) sourceIds.splice(taskIdx, 1);
 
-      const destIds = state.project.columns[destCol].taskIds;
-      destIds.splice(newIndex, 0, taskId);
+        const destIds = project.columns[destCol].taskIds;
+        destIds.splice(newIndex, 0, taskId);
 
-      state.lastSynced = new Date().toISOString();
-      state.persistence.isDirty = true;
+        state.lastSynced = new Date().toISOString();
+        state.persistence.isDirty = true;
+      }
+    },
+
+    // --- PROPOSALS & MESH ---
+    stageChange: (state, action) => {
+      state.myPendingChanges.push({
+        id: Date.now(),
+        type: action.payload.type,
+        payload: action.payload.data,
+        summary: action.payload.summary
+      });
+    },
+
+    clearPendingChanges: (state) => {
+      state.myPendingChanges = [];
+    },
+
+    addProposalToQueue: (state, action) => {
+      state.proposals.push(action.payload);
+    },
+
+    rejectProposal: (state, action) => {
+      state.proposals = state.proposals.filter(p => p.id !== action.payload);
+    },
+
+    acceptProposal: (state, action) => {
+      const proposalId = action.payload;
+      const proposal = state.proposals.find(p => p.id === proposalId);
+      const project = state.projects[state.currentProjectId];
+
+      if (proposal && project) {
+        proposal.changes.forEach(change => {
+          if (change.type === 'MOVE_TASK') {
+            const { taskId, sourceCol, destCol } = change.data;
+            project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
+            project.columns[destCol].taskIds.push(taskId);
+          }
+          // Add other types (ADD_TASK, etc) here following the same pattern
+        });
+
+        state.proposals = state.proposals.filter(p => p.id !== proposalId);
+        state.persistence.isDirty = true;
+      }
+    },
+
+    // --- SYSTEM & PERSISTENCE ---
+    hydrateVault: (state) => {
+      if (typeof window === "undefined") return;
+      const saved = localStorage.getItem("lava_vault_data");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // We manually pick keys to avoid overwriting runtime flags like isHydrated
+          state.projects = parsed.projects || {};
+          state.userName = parsed.userName || '';
+          state.currentProjectId = parsed.currentProjectId || null;
+        } catch (e) {
+          console.error("LavaMesh: Hydration Failed", e);
+        }
+      }
+      state.isHydrated = true;
+    },
+
+    markAsSaved: (state) => {
+      state.persistence.isDirty = false;
+      state.persistence.lastSavedAt = new Date().toISOString();
+      const currentProject = state.projects[state.currentProjectId];
+      if (currentProject) {
+        state.persistence.lastSavedHash = JSON.stringify(currentProject);
+      }
     },
 
     updateMeshStatus: (state, action) => {
       state.mesh.peersOnline = action.payload.count;
       state.mesh.syncHealth = action.payload.status;
-    },
-
-    setCloudSyncStatus: (state, action) => {
-      state.backup.lastCloudBackup = action.payload.time;
-      state.backup.isLavaProof = true;
-    },
-    markSavedToDisk: (state) => {
-      state.lastSynced = new Date().toISOString();
-      state.backup.isLavaProof = true; // Visual proof that data is savd
-    },
-    markAsSaved: (state) => {
-      state.persistence.isDirty = false;
-      state.persistence.lastSavedAt = new Date().toISOString();
-      state.persistence.lastSavedHash = JSON.stringify(state.project);
-    },
+    }
   }
 });
 
 export const {
+  stageChange,
+  clearPendingChanges,
+  setRole,
+  createProject,
   markAsSaved,
-  markSavedToDisk,
   hydrateVault,
   connectVault,
   addTask,
   moveTask,
   updateMeshStatus,
-  setCloudSyncStatus
+  addProposalToQueue, 
+  rejectProposal, 
+  acceptProposal,
+  selectProject
 } = lavaSlice.actions;
 
 export default lavaSlice.reducer;

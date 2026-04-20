@@ -15,7 +15,8 @@ import TaskController from "@/components/TaskControler";
 
 export default function LocalVault() {
   const dispatch = useDispatch();
-  const { project } = useSelector((state) => state.lava || {});
+  const { projects, currentProjectId } = useSelector((state) => state.lava);
+  const project = projects[currentProjectId];
   const columns = project?.columns || {};
   const tasks = project?.tasks || {};
   const hasTasks = Object.keys(tasks).length > 0;
@@ -88,7 +89,7 @@ export default function LocalVault() {
                 </button>
               </div>
 
-  
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-900">
