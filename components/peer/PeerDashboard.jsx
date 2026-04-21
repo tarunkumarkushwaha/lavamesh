@@ -4,18 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { ClipboardList, Ghost, User, Zap, Activity } from "lucide-react";
 import ProposalButton from "./ProposalButton";
 import { useSocket } from "@/hooks/useSocket";
+import { connectVault } from "@/store/lavaSlice";
 
 export default function PeerDashboard() {
   // 1. Pull data from Redux
-  const { project, myPendingChanges, userName} = useSelector((state) => state.lava || {});
-  const socket = useSocket(project.id);
-  // 2. Identify Peer-specific tasks 
-  // For now, we show tasks in 'todo' and 'ongoing' as "Assignments"
-  const todoIds = project?.columns['todo']?.taskIds || [];
-  const ongoingIds = project?.columns['ongoing']?.taskIds || [];
-  const assignedIds = [...todoIds, ...ongoingIds];
+  const { projects, currentProjectId, myPendingChanges, userName } = useSelector((state) => state.lava || {});
+  const project = projects?.[currentProjectId];
+  const socket = useSocket(currentProjectId);
 
-  const myTasks = assignedIds.map(id => project.tasks[id]).filter(Boolean);
 
   // Calculate local sync progress (visual only)
   const pendingCount = myPendingChanges?.length || 0;
@@ -34,6 +30,20 @@ export default function PeerDashboard() {
     return () => socket.off("sync-vault");
   }, [socket, dispatch]);
 
+  if (!project) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <p className="font-bold text-slate-500 animate-pulse">Syncing with Vault: {currentProjectId}...</p>
+      </div>
+    );
+  }
+
+  const todoIds = project?.columns?.['todo']?.taskIds || [];
+  const ongoingIds = project?.columns?.['ongoing']?.taskIds || [];
+  const assignedIds = [...todoIds, ...ongoingIds];
+  const myTasks = assignedIds.map(id => project.tasks[id]).filter(Boolean);
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
 
@@ -49,7 +59,7 @@ export default function PeerDashboard() {
           </h1>
           <p className="text-slate-500">You are currently synced with the Admin Vault.</p>
         </div>
-        <ProposalButton />
+        {/* <ProposalButton /> */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

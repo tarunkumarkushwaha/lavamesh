@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import AdminReviewPanel from "./AdminReviewPanel";
-import { selectProject } from "@/store/lavaSlice";
+import { selectProject, markAsSaved } from "@/store/lavaSlice";
 import CreateProject from "./CreateProject";
 
 export default function AdminDashboard() {
@@ -24,11 +24,11 @@ export default function AdminDashboard() {
     const [showProjectPicker, setShowProjectPicker] = useState(false);
 
     // 1. Pull data safely from Redux
-    const { projects, currentProjectId, mesh, userName, proposals } = useSelector((state) => state.lava || {});
+    const { projects, currentProjectId, mesh, userName, proposals, persistence } = useSelector((state) => state.lava || {});
     const project = projects?.[currentProjectId];
 
     // 2. Safe Hook Calls (Never pass undefined properties to hooks)
-    const socket = useSocket(project?.id);
+    const socket = useSocket(currentProjectId);
 
     // 3. Keep a fresh reference of the project for the socket to avoid re-rendering
     const projectRef = useRef(project);
@@ -66,36 +66,57 @@ export default function AdminDashboard() {
     ];
 
     // 5. Socket Setup
+
+    // A. Handle Peer Join Requests (Direct Transfer)
     useEffect(() => {
-        if (!socket || !project?.id) return;
+        if (!socket) return;
 
-        socket.on("connect", () => {
-            console.log("Admin Socket Connected. Project ID:", project.id);
-        });
-
-        // The listener uses projectRef so it always sends the latest data 
-        // WITHOUT needing to re-attach the listener on every Redux change.
-        socket.on('peer-joined-needs-data', ({ peerId }) => {
-            console.log("Peer", peerId, "joined. Transferring Master Vault...");
+        const handlePeerJoin = ({ peerId }) => {
+            console.log(`Node ${peerId} requested vault state.`);
             socket.emit('transfer-initial-data', {
-                peerId: peerId,
-                projectData: projectRef.current
+                peerId,
+                projectData: project
             });
+        };
+
+        socket.on('peer-joined-needs-data', handlePeerJoin);
+        return () => socket.off('peer-joined-needs-data', handlePeerJoin);
+    }, [socket, project]);
+
+    // B. Broadcast Local Changes (Sync)
+    useEffect(() => {
+        // Only emit if we have a connection AND local changes (persistence.isDirty)
+        if (socket && project && persistence?.isDirty) {
+            socket.emit("sync-vault-to-peers", {
+                projectId: currentProjectId,
+                data: project
+            });
+
+            // CRITICAL: After syncing, tell Redux we are no longer "dirty"
+            // This prevents the infinite loop.
+            dispatch(markAsSaved());
+        }
+    }, [project, socket, currentProjectId, persistence?.isDirty, dispatch]);
+
+    // C. Listen for Proposals from Peers
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on('receive-proposal', (proposal) => {
+            console.log("New proposal received from peer");
+            dispatch(addProposalToQueue(proposal));
         });
 
-        return () => {
-            socket.off('peer-joined-needs-data');
-            socket.off('connect');
-        };
-    }, [socket, project?.id]); // Only re-run if the project ID or socket changes entirely
+        return () => socket.off('receive-proposal');
+    }, [socket, dispatch]);
 
     // 6. Early Return for empty states
     if (!project) {
         return (
             <div className="flex flex-col items-center justify-center h-64 space-y-4">
                 <AlertCircle className="w-12 h-12 text-slate-400" />
-                <p className="text-slate-500 font-medium">No active project found. Please select or create one.</p>
-                <button onClick={() => window.location.href = "/"} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl">Go Home</button>
+                <p className="text-slate-500 pt-10 font-medium">No active project found. Please select or create one.</p>
+                <CreateProject setIsCreating={setIsCreating} />
             </div>
         );
     }
@@ -121,7 +142,7 @@ export default function AdminDashboard() {
                             {/* Invisible backdrop to close dropdown when clicking outside */}
                             <div className="fixed inset-0 z-40" onClick={() => setShowProjectPicker(false)}></div>
                             <div className="absolute top-12 left-0 w-64 bg-slate-900 border rounded-2xl shadow-xl z-50 p-2 space-y-1">
-                                <p className="text-[10px] font-bold text-slate-400 p-2 uppercase">Your Vaults</p>
+                                <p className="text-[10px] font-bold text-slate-400 p-2 uppercase">Your Projects</p>
                                 {Object.values(projects || {}).map(p => (
                                     <button
                                         key={p.id}

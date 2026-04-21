@@ -1,33 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
 export const useSocket = (projectId) => {
-  const socketRef = useRef();
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // 1. Initialize the socket connection
+    if (!projectId) return;
+
+    let socketInstance;
+
     const socketInitializer = async () => {
-      // Trigger the API route to start the server if it's down
+      // 1. Trigger the API route
       await fetch('/api/socket');
       
-      socketRef.current = io({
+      // 2. Initialize socket
+      socketInstance = io({
         path: '/api/socket',
+        reconnection: true,
+        reconnectionAttempts: 5,
       });
 
-      socketRef.current.on('connect', () => {
-        console.log('Connected to Mesh Network');
-        if (projectId) {
-          socketRef.current.emit('join-project', projectId);
-        }
+      socketInstance.on('connect', () => {
+        console.log('Connected to Mesh Network:', socketInstance.id);
+        socketInstance.emit('join-project', projectId);
       });
+
+      // 3. Keep track of it in state
+      setSocket(socketInstance);
     };
 
     socketInitializer();
 
+    // 4. CLEANUP: Now socketInstance is accessible here
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      if (socketInstance) {
+        socketInstance.off('connect');
+        socketInstance.disconnect();
+      }
     };
-  }, [projectId]);
+  }, [projectId]); // Re-run only if projectId changes
 
-  return socketRef.current;
+  return socket;
 };

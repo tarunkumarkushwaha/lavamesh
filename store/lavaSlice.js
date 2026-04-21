@@ -10,7 +10,6 @@ const initialState = {
   myPendingChanges: [],
   isPeerMode: true,
   proposals: [],
-  // This represents the ACTIVE project data for the UI
   projects: {}, 
   persistence: {
     isDirty: false,
@@ -28,9 +27,19 @@ export const lavaSlice = createSlice({
     setRole: (state, action) => {
       state.role = action.payload.role;
       state.userName = action.payload.user;
+      // Reset connection status when switching roles
+      if (action.payload.role === 'peer') {
+        state.vaultConnected = false;
+      }
     },
 
     // --- PROJECT MANAGEMENT ---
+    
+    // Define the missing action here
+    setCurrentProject: (state, action) => {
+      state.currentProjectId = action.payload;
+    },
+
     createProject: (state, action) => {
       const { name, id, userName } = action.payload;
       const newProject = {
@@ -55,6 +64,8 @@ export const lavaSlice = createSlice({
 
     connectVault: (state, action) => {
       const incomingProject = action.payload;
+      if (!incomingProject || !incomingProject.id) return;
+      
       state.projects[incomingProject.id] = incomingProject;
       state.currentProjectId = incomingProject.id;
       state.vaultConnected = true;
@@ -63,10 +74,10 @@ export const lavaSlice = createSlice({
     },
 
     selectProject: (state, action) => {
-    state.currentProjectId = action.payload;
-},
+      state.currentProjectId = action.payload;
+    },
 
-    // --- TASK MANIPULATION (Dictionary Aware) ---
+    // --- TASK MANIPULATION ---
     addTask: (state, action) => {
       const { task, columnId } = action.payload;
       const project = state.projects[state.currentProjectId];
@@ -127,14 +138,16 @@ export const lavaSlice = createSlice({
         proposal.changes.forEach(change => {
           if (change.type === 'MOVE_TASK') {
             const { taskId, sourceCol, destCol } = change.data;
+            // Filter out from source
             project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
+            // Push to destination
             project.columns[destCol].taskIds.push(taskId);
           }
-          // Add other types (ADD_TASK, etc) here following the same pattern
         });
 
         state.proposals = state.proposals.filter(p => p.id !== proposalId);
         state.persistence.isDirty = true;
+        state.lastSynced = new Date().toISOString();
       }
     },
 
@@ -145,10 +158,10 @@ export const lavaSlice = createSlice({
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // We manually pick keys to avoid overwriting runtime flags like isHydrated
           state.projects = parsed.projects || {};
           state.userName = parsed.userName || '';
           state.currentProjectId = parsed.currentProjectId || null;
+          state.role = parsed.role || 'unselected';
         } catch (e) {
           console.error("LavaMesh: Hydration Failed", e);
         }
@@ -186,7 +199,8 @@ export const {
   addProposalToQueue, 
   rejectProposal, 
   acceptProposal,
-  selectProject
+  selectProject,
+  setCurrentProject 
 } = lavaSlice.actions;
 
 export default lavaSlice.reducer;

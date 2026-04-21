@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setRole } from "@/store/lavaSlice";
+import { setRole, setCurrentProject } from "@/store/lavaSlice";
 import { ShieldAlert, Users, Box, UserCircle } from "lucide-react";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import PeerDashboard from "@/components/peer/PeerDashboard";
@@ -12,10 +12,14 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [joinCode, setJoinCode] = useState(""); // New state for Admin Setup
   const [error, setError] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const dispatch = useDispatch();
   const { userName: savedName, role, isHydrated } = useSelector((state) => state.lava);
-
 
   // 3. Sync local state once hydration is complete
   useEffect(() => {
@@ -38,24 +42,35 @@ export default function Home() {
     dispatch(setRole({ role: 'unselected', user: '' }));
   };
 
-  // const handleAdminSetup = () => {
-  //   if (!userName.trim()) {
-  //     setError(true);
-  //     return;
-  //   }
-  //   setIsCreating(true); // Show project naming screen
-  // };
+  const handleName = () => {
+    if (!userName.trim()) {
+      setError(true);
+      return;
+    }
+    if (userName && (role == 'peer' || role == 'admin')) {
+      dispatch(setRole({ role: role, user: userName }));
+      setIsCreating(true);
+    }
+  };
 
+  // Inside Home.js
   const handleJoinPeer = () => {
     if (!userName.trim() || !joinCode.trim()) {
       setError(!userName.trim());
       return;
     }
+
+    // 1. Set the role and name
     dispatch(setRole({ role: 'peer', user: userName }));
+
+    // 2. CRITICAL: Tell Redux WHICH project ID we are looking for
+    // Assuming you have a 'setCurrentProject' action in your slice
+    dispatch(setCurrentProject(joinCode.trim()));
   };
 
-  if (!isHydrated) return <div className="p-10 text-center font-mono">Waking up the mesh...</div>;
+  if (!isHydrated || !hasMounted) return <div className="p-10 text-center font-mono">Waking up the mesh...</div>;
 
+  console.log(role)
   if (role === "admin") return <AdminDashboard />;
   if (role === "peer") return <PeerDashboard />;
 
@@ -97,10 +112,10 @@ export default function Home() {
                 </button>
               )}
               <button
-                onClick={handleAdminSetup}
+                onClick={handleName}
                 className="w-full mt-4 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all"
               >
-                Continue as {userName || "Architect"}
+                {userName ? `Continue as ${userName}` : "Save"}
               </button>
             </div>
 
@@ -133,6 +148,7 @@ export default function Home() {
             </div>
           </div>
         ) : (
+          // <>no projectwa</>
           <CreateProject setIsCreating={setIsCreating} />
         )
         }
