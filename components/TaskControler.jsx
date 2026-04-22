@@ -9,13 +9,14 @@ export default function TaskController({ task, currentColumn }) {
     const dispatch = useDispatch();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const handleConfirmAdd = ({ content, priority, name }) => {
+    const handleConfirmAdd = ({ content, priority, name, assignee }) => {
         const newTask = {
             id: `task-${Date.now()}`,
             content: content,
             priority: priority,
             name: name,
             createdAt: new Date().toISOString(),
+            assignee: assignee
         };
 
         dispatch(addTask({ task: newTask, columnId: "todo" }));

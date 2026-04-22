@@ -7,19 +7,22 @@ import { useSocket } from "@/hooks/useSocket";
 
 export default function ProposalButton() {
   const dispatch = useDispatch();
-  const { myPendingChanges, role, userName, project } = useSelector((state) => state.lava);
-
+  const { myPendingChanges, role, userName, projects, currentProjectId } = useSelector((state) => state.lava);
+  const project = projects?.[currentProjectId];
   if (role !== 'peer') return null;
   const socket = useSocket(project.id);
+
+  console.log(myPendingChanges, "pending changes")
 
   const handlePushProposal = () => {
     if (myPendingChanges.length > 0 && socket) {
       socket.emit('send-proposal', {
-        projectId: project.id,
+        projectId: currentProjectId,
         proposal: {
+          id: `prop-${Date.now()}`, // Added unique ID
           sender: userName,
           changes: myPendingChanges,
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         }
       });
       dispatch(clearPendingChanges());

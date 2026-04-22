@@ -10,25 +10,25 @@ export default function PeerDashboard() {
   // 1. Pull data from Redux
   const { projects, currentProjectId, myPendingChanges, userName } = useSelector((state) => state.lava || {});
   const project = projects?.[currentProjectId];
-  const socket = useSocket(currentProjectId);
+  // const socket = useSocket(currentProjectId);
 
 
   // Calculate local sync progress (visual only)
   const pendingCount = myPendingChanges?.length || 0;
   const syncProgress = Math.min(pendingCount * 20, 100);
-  const dispatch = useDispatch()
+  // const dispatch = useDispatch()
 
-  useEffect(() => {
-    if (!socket) return;
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    socket.on("sync-vault", (incomingProjectData) => {
-      console.log("Data Received from Admin:", incomingProjectData);
-      // CRITICAL: Ensure this matches your reducer name
-      dispatch(connectVault(incomingProjectData));
-    });
+  //   socket.on("sync-vault", (incomingProjectData) => {
+  //     console.log("Data Received from Admin:", incomingProjectData);
+  //     // CRITICAL: Ensure this matches your reducer name
+  //     dispatch(connectVault(incomingProjectData));
+  //   });
 
-    return () => socket.off("sync-vault");
-  }, [socket, dispatch]);
+  //   return () => socket.off("sync-vault");
+  // }, [socket, dispatch]);
 
   if (!project) {
     return (
@@ -59,7 +59,7 @@ export default function PeerDashboard() {
           </h1>
           <p className="text-slate-500">You are currently synced with the Admin Vault.</p>
         </div>
-        {/* <ProposalButton /> */}
+        <ProposalButton />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -24,11 +24,13 @@ export default function AdminDashboard() {
     const [showProjectPicker, setShowProjectPicker] = useState(false);
 
     // 1. Pull data safely from Redux
-    const { projects, currentProjectId, mesh, userName, proposals, persistence } = useSelector((state) => state.lava || {});
+    const { projects, currentProjectId, mesh, userName, proposals, persistence, role } = useSelector((state) => state.lava || {});
     const project = projects?.[currentProjectId];
 
     // 2. Safe Hook Calls (Never pass undefined properties to hooks)
-    const socket = useSocket(currentProjectId);
+    // const socket = useSocket(currentProjectId);
+
+    // console.log(projects,"the mesh")
 
     // 3. Keep a fresh reference of the project for the socket to avoid re-rendering
     const projectRef = useRef(project);
@@ -68,47 +70,49 @@ export default function AdminDashboard() {
     // 5. Socket Setup
 
     // A. Handle Peer Join Requests (Direct Transfer)
-    useEffect(() => {
-        if (!socket) return;
+    // useEffect(() => {
+    //     if (!socket) return;
 
-        const handlePeerJoin = ({ peerId }) => {
-            console.log(`Node ${peerId} requested vault state.`);
-            socket.emit('transfer-initial-data', {
-                peerId,
-                projectData: project
-            });
-        };
+    //     const handlePeerJoin = ({ peerId }) => {
+    //         console.log(`Node ${peerId} requested vault state.`);
+    //         socket.emit('transfer-initial-data', {
+    //             peerId,
+    //             projectData: project
+    //         });
+    //     };
 
-        socket.on('peer-joined-needs-data', handlePeerJoin);
-        return () => socket.off('peer-joined-needs-data', handlePeerJoin);
-    }, [socket, project]);
+    //     socket.on('peer-joined-needs-data', handlePeerJoin);
+    //     return () => socket.off('peer-joined-needs-data', handlePeerJoin);
+    // }, [socket, project]);
 
-    // B. Broadcast Local Changes (Sync)
-    useEffect(() => {
-        // Only emit if we have a connection AND local changes (persistence.isDirty)
-        if (socket && project && persistence?.isDirty) {
-            socket.emit("sync-vault-to-peers", {
-                projectId: currentProjectId,
-                data: project
-            });
+    // console.log(project,"project in admin")
 
-            // CRITICAL: After syncing, tell Redux we are no longer "dirty"
-            // This prevents the infinite loop.
-            dispatch(markAsSaved());
-        }
-    }, [project, socket, currentProjectId, persistence?.isDirty, dispatch]);
+    // // B. Broadcast Local Changes (Sync)
+    // useEffect(() => {
+    //     // Only emit if we have a connection AND local changes (persistence.isDirty)
+    //     if (socket && project && persistence?.isDirty) {
+    //         socket.emit("sync-vault-to-peers", {
+    //             projectId: currentProjectId,
+    //             data: project
+    //         });
 
-    // C. Listen for Proposals from Peers
-    useEffect(() => {
-        if (!socket) return;
+    //         // CRITICAL: After syncing, tell Redux we are no longer "dirty"
+    //         // This prevents the infinite loop.
+    //         dispatch(markAsSaved());
+    //     }
+    // }, [project, socket, currentProjectId, persistence?.isDirty, dispatch]);
 
-        socket.on('receive-proposal', (proposal) => {
-            console.log("New proposal received from peer");
-            dispatch(addProposalToQueue(proposal));
-        });
+    // // C. Listen for Proposals from Peers
+    // useEffect(() => {
+    //     if (!socket) return;
 
-        return () => socket.off('receive-proposal');
-    }, [socket, dispatch]);
+    //     socket.on('receive-proposal', (proposal) => {
+    //         console.log("New proposal received from peer");
+    //         dispatch(addProposalToQueue(proposal));
+    //     });
+
+    //     return () => socket.off('receive-proposal');
+    // }, [socket, dispatch]);
 
     // 6. Early Return for empty states
     if (!project) {
@@ -122,7 +126,7 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-8 relative animate-in fade-in slide-in-from-bottom-4 duration-700">
 
             {/* Top Invite Bar */}
             <div className="flex items-center justify-between p-2 pl-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl">
@@ -271,24 +275,38 @@ export default function AdminDashboard() {
                 <CreateProject setIsCreating={setIsCreating} />
             }
 
-            {/* <aside className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-transform duration-500 z-40 ${isReviewOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                <AdminReviewPanel onClose={() => setIsReviewOpen(false)} />
-            </aside> */}
-            {/* Review Proposals Floating Button */}
-            {/* <button
-                onClick={() => setIsReviewOpen(!isReviewOpen)}
-                className="fixed bottom-8 right-8 z-50 bg-blue-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 hover:scale-105 transition-all"
+            {isReviewOpen && (
+                <div
+                    className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 animate-in fade-in duration-300"
+                    onClick={() => setIsReviewOpen(false)}
+                />
+            )}
+
+            <aside
+                className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-40 
+    transition-transform duration-500 ease-in-out transform
+    ${isReviewOpen ? 'translate-x-0' : 'translate-x-full'}
+    ${!isReviewOpen && 'pointer-events-none'} 
+  `}
             >
-                <div className="relative">
-                    <MessageSquare size={20} />
-                    {(proposals?.length || 0) > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
-                            {proposals.length}
-                        </span>
-                    )}
-                </div>
-                <span className="font-bold text-sm">Review Changes</span>
-            </button> */}
+                <AdminReviewPanel onClose={() => setIsReviewOpen(false)} />
+            </aside>
+            {role === 'admin' && (
+                <button
+                    onClick={() => setIsReviewOpen(!isReviewOpen)}
+                    className="fixed bottom-8 right-8 z-50 bg-blue-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 hover:scale-110 active:scale-95 transition-all"
+                >
+                    <div className="relative">
+                        <MessageSquare size={20} />
+                        {(proposals?.length || 0) > 0 && (
+                            <span className="absolute -top-3 -right-3 bg-red-500 text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 animate-bounce">
+                                {proposals.length}
+                            </span>
+                        )}
+                    </div>
+                    <span className="font-bold text-sm">Review Changes</span>
+                </button>
+            )}
         </div>
     );
 }

@@ -7,13 +7,15 @@ const TaskModal = ({ isOpen, onClose, onConfirm }) => {
     const [content, setContent] = useState('');
     const [name, setname] = useState('');
     const [priority, setPriority] = useState('Normal');
+    const [assignee, setAssignee] = useState('');
     const modalRef = useRef(null);
 
     const handleConfirm = () => {
         if (!content.trim()) return;
-        onConfirm({ name, content, priority });
+        onConfirm({ name, content, priority, assignee });
         setContent('');
         setname("")
+        setAssignee("")
         setPriority('Normal');
         onClose();
     };
@@ -91,6 +93,16 @@ const TaskModal = ({ isOpen, onClose, onConfirm }) => {
                                     onKeyDown={onEnterPress}
                                     onChange={(e) => setContent(e.target.value)}
                                     placeholder="What needs to be done?"
+                                    className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                />
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assignee</label>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={assignee}
+                                    onKeyDown={onEnterPress}
+                                    onChange={(e) => setAssignee(e.target.value)}
+                                    placeholder="set Assignee"
                                     className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                 />
                             </div>

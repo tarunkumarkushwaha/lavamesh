@@ -10,7 +10,7 @@ const initialState = {
   myPendingChanges: [],
   isPeerMode: true,
   proposals: [],
-  projects: {}, 
+  projects: {},
   persistence: {
     isDirty: false,
     lastSavedHash: null,
@@ -34,7 +34,7 @@ export const lavaSlice = createSlice({
     },
 
     // --- PROJECT MANAGEMENT ---
-    
+
     // Define the missing action here
     setCurrentProject: (state, action) => {
       state.currentProjectId = action.payload;
@@ -65,7 +65,7 @@ export const lavaSlice = createSlice({
     connectVault: (state, action) => {
       const incomingProject = action.payload;
       if (!incomingProject || !incomingProject.id) return;
-      
+
       state.projects[incomingProject.id] = incomingProject;
       state.currentProjectId = incomingProject.id;
       state.vaultConnected = true;
@@ -81,7 +81,7 @@ export const lavaSlice = createSlice({
     addTask: (state, action) => {
       const { task, columnId } = action.payload;
       const project = state.projects[state.currentProjectId];
-      
+
       if (project) {
         project.tasks[task.id] = task;
         project.columns[columnId].taskIds.push(task.id);
@@ -110,11 +110,42 @@ export const lavaSlice = createSlice({
     // --- PROPOSALS & MESH ---
     stageChange: (state, action) => {
       state.myPendingChanges.push({
-        id: Date.now(),
+        id: `change-${Date.now()}`,
         type: action.payload.type,
-        payload: action.payload.data,
+        data: action.payload.data, // This now contains {taskId, sourceCol, destCol}
         summary: action.payload.summary
       });
+    },
+
+    acceptProposal: (state, action) => {
+      const proposalId = action.payload;
+      const proposal = state.proposals.find(p => p.id === proposalId);
+      const project = state.projects[state.currentProjectId];
+
+      if (proposal && project) {
+        proposal.changes.forEach(change => {
+          if (change.type === 'MOVE_TASK') {
+            const { taskId, sourceCol, destCol } = change.data;
+
+            // 1. Remove from source
+            if (project.columns[sourceCol]) {
+              project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
+            }
+
+            // 2. Add to destination
+            if (project.columns[destCol]) {
+              // Avoid duplicates
+              if (!project.columns[destCol].taskIds.includes(taskId)) {
+                project.columns[destCol].taskIds.push(taskId);
+              }
+            }
+          }
+        });
+
+        // Remove proposal from queue and mark as dirty to broadcast to everyone
+        state.proposals = state.proposals.filter(p => p.id !== proposalId);
+        state.persistence.isDirty = true;
+      }
     },
 
     clearPendingChanges: (state) => {
@@ -129,27 +160,27 @@ export const lavaSlice = createSlice({
       state.proposals = state.proposals.filter(p => p.id !== action.payload);
     },
 
-    acceptProposal: (state, action) => {
-      const proposalId = action.payload;
-      const proposal = state.proposals.find(p => p.id === proposalId);
-      const project = state.projects[state.currentProjectId];
+    // acceptProposal: (state, action) => {
+    //   const proposalId = action.payload;
+    //   const proposal = state.proposals.find(p => p.id === proposalId);
+    //   const project = state.projects[state.currentProjectId];
 
-      if (proposal && project) {
-        proposal.changes.forEach(change => {
-          if (change.type === 'MOVE_TASK') {
-            const { taskId, sourceCol, destCol } = change.data;
-            // Filter out from source
-            project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
-            // Push to destination
-            project.columns[destCol].taskIds.push(taskId);
-          }
-        });
+    //   if (proposal && project) {
+    //     proposal.changes.forEach(change => {
+    //       if (change.type === 'MOVE_TASK') {
+    //         const { taskId, sourceCol, destCol } = change.data;
+    //         // Filter out from source
+    //         project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
+    //         // Push to destination
+    //         project.columns[destCol].taskIds.push(taskId);
+    //       }
+    //     });
 
-        state.proposals = state.proposals.filter(p => p.id !== proposalId);
-        state.persistence.isDirty = true;
-        state.lastSynced = new Date().toISOString();
-      }
-    },
+    //     state.proposals = state.proposals.filter(p => p.id !== proposalId);
+    //     state.persistence.isDirty = true;
+    //     state.lastSynced = new Date().toISOString();
+    //   }
+    // },
 
     // --- SYSTEM & PERSISTENCE ---
     hydrateVault: (state) => {
@@ -196,11 +227,11 @@ export const {
   addTask,
   moveTask,
   updateMeshStatus,
-  addProposalToQueue, 
-  rejectProposal, 
+  addProposalToQueue,
+  rejectProposal,
   acceptProposal,
   selectProject,
-  setCurrentProject 
+  setCurrentProject
 } = lavaSlice.actions;
 
 export default lavaSlice.reducer;

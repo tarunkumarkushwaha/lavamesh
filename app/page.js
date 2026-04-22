@@ -70,7 +70,7 @@ export default function Home() {
 
   if (!isHydrated || !hasMounted) return <div className="p-10 text-center font-mono">Waking up the mesh...</div>;
 
-  console.log(role)
+  // console.log(role)
   if (role === "admin") return <AdminDashboard />;
   if (role === "peer") return <PeerDashboard />;
 

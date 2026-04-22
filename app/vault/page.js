@@ -15,7 +15,7 @@ import TaskController from "@/components/TaskControler";
 
 export default function LocalVault() {
   const dispatch = useDispatch();
-  const { projects, currentProjectId } = useSelector((state) => state.lava);
+  const { projects, currentProjectId, role } = useSelector((state) => state.lava);
   const project = projects[currentProjectId];
   const columns = project?.columns || {};
   const tasks = project?.tasks || {};
@@ -57,7 +57,7 @@ export default function LocalVault() {
           <h1 className="text-2xl font-bold tracking-tight">Local Vault</h1>
           <p className="text-sm text-slate-500">Manage tasks and project state directly from your local directory.</p>
         </div>
-        <TaskController />
+        {role == "admin" && <TaskController />}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
@@ -98,6 +98,7 @@ export default function LocalVault() {
                       <th className="px-6 py-3 font-medium">Description</th>
                       <th className="px-6 py-3 font-medium">Priority</th>
                       <th className="px-6 py-3 font-medium">Actions</th>
+                      <th className="px-6 py-3 font-medium">Assignee</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -132,6 +133,7 @@ export default function LocalVault() {
                               ))}
                             </select>
                           </td>
+                          <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">{task?.assignee}</td>
                         </tr>
                       ))
                     ) : (

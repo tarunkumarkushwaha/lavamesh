@@ -96,8 +96,8 @@ const Navbar = () => {
                                 </button>
                                 <div className="absolute">
                                     {filteredProjects.length > 0 ? (
-                                        filteredProjects.map(p => <div className="text-center rounded-xl p-2 m-1 bg-slate-800">
-                                            <p key={p.id}
+                                        filteredProjects.map(p => <div key={p.id} className="text-center rounded-xl p-2 m-1 bg-slate-800">
+                                            <p
                                                 // onClick={() => {
                                                 //     dispatch(selectProject(p.id));
                                                 // }}

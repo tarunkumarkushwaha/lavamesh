@@ -1,32 +1,20 @@
 "use client";
 import React from "react";
-import { useSelector, useDispatch, useStore } from "react-redux"; // Added useStore
+import { useSelector, useDispatch } from "react-redux"; 
 import { Check, X, MessageSquare, User, CheckCircle2 } from "lucide-react";
 import { acceptProposal, rejectProposal } from "@/store/lavaSlice";
 
-export default function AdminReviewPanel({ socket, onClose }) {
+export default function AdminReviewPanel({ onClose }) {
   const dispatch = useDispatch();
-  const store = useStore(); // Access the raw store to get fresh state
+  // We only need the proposals from the mesh
   const { proposals } = useSelector((state) => state.lava);
 
-  const handleApprove = (proposal) => {
-    // 1. Update Admin's local Redux state
-    dispatch(acceptProposal(proposal.id));
-
-    // 2. Broadcast the FRESH state
-    // We use store.getState() right now to ensure we get the updated 
-    // project state immediately after the dispatch.
-    const freshState = store.getState().lava;
-    
-    if (socket) {
-      socket.emit("merge-approved", {
-        projectId: freshState.project.id,
-        updatedProject: freshState.project 
-      });
-    }
+  const handleApprove = (proposalId) => {
+    // This dispatch updates the state AND sets isDirty: true
+    // Our BaseLayout / SocketBridge will handle the actual broadcast
+    dispatch(acceptProposal(proposalId));
   };
 
-  // Empty State UI
   if (proposals.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 text-center opacity-40">
@@ -43,7 +31,6 @@ export default function AdminReviewPanel({ socket, onClose }) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-xl">
-      {/* Header */}
       <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
         <h3 className="text-sm font-bold flex items-center gap-2">
           <MessageSquare size={16} /> Incoming PRs
@@ -53,7 +40,6 @@ export default function AdminReviewPanel({ socket, onClose }) {
         </button>
       </div>
       
-      {/* Scrollable List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {proposals.map((pr) => (
           <div 
@@ -66,22 +52,22 @@ export default function AdminReviewPanel({ socket, onClose }) {
               </div>
               <span className="text-xs font-bold">{pr.sender}</span>
               <span className="text-[9px] text-slate-400 ml-auto">
-                {new Date(pr.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {pr.timestamp ? new Date(pr.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
               </span>
             </div>
             
             <div className="space-y-1 py-1 border-y border-slate-100 dark:border-slate-800">
-              {pr.changes.map((c, i) => (
+              {pr.changes?.map((c, i) => (
                 <div key={i} className="text-[10px] text-slate-500 flex items-start gap-2">
                   <span className="text-blue-500 mt-0.5">●</span>
-                  {c.summary}
+                  {c.summary || "Manual override requested"}
                 </div>
               ))}
             </div>
 
             <div className="flex gap-2 pt-1">
               <button 
-                onClick={() => handleApprove(pr)}
+                onClick={() => handleApprove(pr.id)}
                 className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-colors"
               >
                 <Check size={12} /> Approve Merge
@@ -97,7 +83,6 @@ export default function AdminReviewPanel({ socket, onClose }) {
         ))}
       </div>
       
-      {/* Footer Info */}
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950">
         <p className="text-[9px] text-slate-400 text-center uppercase font-bold tracking-widest">
           LavaMesh Proposal Protocol v1.0
