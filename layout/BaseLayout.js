@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 import Foot from "@/components/Foot";
 import SaveToHardDriveBtn from "@/components/SaveToHardDriveBtn";
 import { useDispatch, useSelector } from "react-redux";
-import { hydrateVault, markAsSaved, connectVault, addProposalToQueue } from "@/store/lavaSlice";
+import { hydrateVault, markAsSaved, connectVault, addProposalToQueue, clearPendingChanges } from "@/store/lavaSlice";
 import { useSocket } from "@/hooks/useSocket";
 
 export default function BaseLayout({ children }) {
@@ -23,8 +23,10 @@ export default function BaseLayout({ children }) {
     const dispatch = useDispatch();
 
     // 1. Redux State
-    const { projects, currentProjectId, role, persistence } = useSelector((state) => state.lava);
+    const { projects, currentProjectId, role, persistence, myPendingChanges, userName } = useSelector((state) => state.lava);
     const project = projects[currentProjectId];
+
+    console.log(myPendingChanges, "pending changes")
 
     // 2. Initial Hydration
     useEffect(() => {
@@ -38,16 +40,9 @@ export default function BaseLayout({ children }) {
     useEffect(() => {
         if (!socket || !project) return;
 
-        // --- ADMIN LOGIC ---
+        // Inside BaseLayout useEffect
         if (role === 'admin') {
-            // Transfer data to new peers joining the room
-            const handlePeerJoin = ({ peerId }) => {
-                socket.emit('transfer-initial-data', { peerId, projectData: project });
-            };
-
-            socket.on('peer-joined-needs-data', handlePeerJoin);
-
-            // Broadcast local changes if state is "dirty"
+            // Keep Admin auto-sync logic
             if (persistence?.isDirty) {
                 socket.emit("sync-vault-to-peers", {
                     projectId: currentProjectId,
@@ -55,27 +50,15 @@ export default function BaseLayout({ children }) {
                 });
                 dispatch(markAsSaved());
             }
-
-            return () => socket.off('peer-joined-needs-data', handlePeerJoin);
         }
 
-        // --- PEER LOGIC ---
         if (role === 'peer') {
+            // REMOVE the auto-emit 'send-proposal' from here.
+            // Only listen for incoming syncs from the Admin.
             const handleSync = (incomingData) => {
                 dispatch(connectVault(incomingData));
             };
-
             socket.on('sync-vault', handleSync);
-            
-            // If Peer makes a local change, send it as a proposal
-            if (persistence?.isDirty) {
-                socket.emit("send-proposal", {
-                    projectId: currentProjectId,
-                    proposal: project 
-                });
-                dispatch(markAsSaved());
-            }
-
             return () => socket.off('sync-vault', handleSync);
         }
     }, [socket, project, role, persistence?.isDirty, currentProjectId, dispatch]);

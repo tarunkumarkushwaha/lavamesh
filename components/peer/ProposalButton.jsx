@@ -12,7 +12,7 @@ export default function ProposalButton() {
   if (role !== 'peer') return null;
   const socket = useSocket(project.id);
 
-  console.log(myPendingChanges, "pending changes")
+  // console.log(myPendingChanges, "pending changes")
 
   const handlePushProposal = () => {
     if (myPendingChanges.length > 0 && socket) {

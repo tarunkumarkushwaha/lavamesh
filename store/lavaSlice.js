@@ -154,6 +154,7 @@ export const lavaSlice = createSlice({
 
     addProposalToQueue: (state, action) => {
       state.proposals.push(action.payload);
+      // console.log(action.payload)
     },
 
     rejectProposal: (state, action) => {

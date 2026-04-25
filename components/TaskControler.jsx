@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addTask, moveTask } from "@/store/lavaSlice";
 import { Plus, ArrowRight } from "lucide-react";
 import TaskModal from "./Modal";
@@ -8,6 +8,7 @@ import TaskModal from "./Modal";
 export default function TaskController({ task, currentColumn }) {
     const dispatch = useDispatch();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { role } = useSelector((state) => state.lava);
 
     const handleConfirmAdd = ({ content, priority, name, assignee }) => {
         const newTask = {
@@ -22,18 +23,22 @@ export default function TaskController({ task, currentColumn }) {
         dispatch(addTask({ task: newTask, columnId: "todo" }));
     };
 
-    const shiftTask = (taskId, sourceCol) => {
+    const shiftTask = (taskId, sourceCol, taskContent) => { 
         const states = ["todo", "ongoing", "review", "done"];
         const currentIndex = states.indexOf(sourceCol);
 
         if (currentIndex < states.length - 1) {
             const destCol = states[currentIndex + 1];
-            dispatch(moveTask({
-                taskId,
-                sourceCol,
-                destCol,
-                newIndex: 0
-            }));
+
+            dispatch(moveTask({ taskId, sourceCol, destCol, newIndex: 0 }));
+
+            if (role === "peer") {
+                dispatch(stageChange({
+                    type: "MOVE_TASK",
+                    data: { taskId, sourceCol, destCol },
+                    summary: `Advanced: ${taskContent} to ${destCol.toUpperCase()}`,
+                }));
+            }
         }
     };
 

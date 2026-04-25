@@ -12,6 +12,7 @@ export default function AdminReviewPanel({ onClose }) {
   const handleApprove = (proposalId) => {
     // This dispatch updates the state AND sets isDirty: true
     // Our BaseLayout / SocketBridge will handle the actual broadcast
+    console.log(proposalId,proposals,"propose")
     dispatch(acceptProposal(proposalId));
   };
 

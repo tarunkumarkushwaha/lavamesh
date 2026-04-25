@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { stageChange } from "@/store/lavaSlice";
+import { stageChange, moveTask } from "@/store/lavaSlice";
 import {
     MoreHorizontal,
     ArrowRightLeft,
@@ -20,6 +20,7 @@ export default function Mesh() {
     const columns = project?.columns || {};
     const tasks = project?.tasks || {};
     const hasTasks = Object.keys(tasks).length > 0;
+    console.log(role, "role")
 
     if (!hasTasks) {
         return (
@@ -119,19 +120,24 @@ export default function Mesh() {
                                                             className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs focus:outline-none"
                                                             // Inside the onChange handler in Mesh.js
                                                             onChange={(e) => {
-                                                                const destinationColumn = e.target.value;
+                                                                const destCol = e.target.value;
+                                                                if (destCol === colId) return;
 
-                                                                // If the value hasn't changed, do nothing
-                                                                if (destinationColumn === colId) return;
+                                                            
+                                                                if (role === "peer") {
+                                                                    dispatch(stageChange({
+                                                                        type: "MOVE_TASK",
+                                                                        data: { taskId: task.id, sourceCol: colId, destCol },
+                                                                        summary: `Moved ${task.content} to ${destCol}`,
+                                                                    }));
+                                                                }
 
-                                                                dispatch(stageChange({
-                                                                    type: "MOVE_TASK", // Specific action type
-                                                                    data: {
-                                                                        taskId: task.id,
-                                                                        sourceCol: colId,
-                                                                        destCol: destinationColumn,
-                                                                    },
-                                                                    summary: `Moved ${task.content} to ${columns[destinationColumn].title}`,
+                                                                // 2. Move locally last
+                                                                dispatch(moveTask({
+                                                                    taskId: task.id,
+                                                                    sourceCol: colId,
+                                                                    destCol: destCol,
+                                                                    newIndex: 0
                                                                 }));
                                                             }}
                                                             value={colId}
