@@ -21,6 +21,7 @@ const CreateProject = ({ setIsCreating }) => {
             id: projectId,
             userName: userName
         }));
+        setIsCreating(false)
     };
     return (
         <div className="max-w-md mx-auto space-y-6 animate-in zoom-in-95">

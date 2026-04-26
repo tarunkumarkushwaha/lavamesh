@@ -1,9 +1,9 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   isHydrated: false,
-  userName: '',
-  role: 'unselected',
+  userName: "",
+  role: "unselected",
   currentProjectId: null,
   vaultConnected: false,
   lastSynced: null,
@@ -16,19 +16,23 @@ const initialState = {
     lastSavedHash: null,
     lastSavedAt: null,
   },
-  mesh: { peersOnline: 0, activeConnections: [], syncHealth: 'stable' },
-  backup: { googleDriveLinked: false, lastCloudBackup: null, isLavaProof: false }
+  mesh: { peersOnline: 0, activeConnections: [], syncHealth: "stable" },
+  backup: {
+    googleDriveLinked: false,
+    lastCloudBackup: null,
+    isLavaProof: false,
+  },
 };
 
 export const lavaSlice = createSlice({
-  name: 'lava',
+  name: "lava",
   initialState,
   reducers: {
     setRole: (state, action) => {
       state.role = action.payload.role;
       state.userName = action.payload.user;
       // Reset connection status when switching roles
-      if (action.payload.role === 'peer') {
+      if (action.payload.role === "peer") {
         state.vaultConnected = false;
       }
     },
@@ -47,19 +51,30 @@ export const lavaSlice = createSlice({
         name: name,
         tasks: {},
         columns: {
-          'todo': { id: 'todo', title: 'To Do', taskIds: [] },
-          'ongoing': { id: 'ongoing', title: 'Ongoing', taskIds: [] },
-          'review': { id: 'review', title: 'Under Review', taskIds: [] },
-          'done': { id: 'done', title: 'Done', taskIds: [] },
+          todo: { id: "todo", title: "To Do", taskIds: [] },
+          ongoing: { id: "ongoing", title: "Ongoing", taskIds: [] },
+          review: { id: "review", title: "Under Review", taskIds: [] },
+          done: { id: "done", title: "Done", taskIds: [] },
         },
-        columnOrder: ['todo', 'ongoing', 'review', 'done'],
+        columnOrder: ["todo", "ongoing", "review", "done"],
       };
 
       state.projects[id] = newProject;
       state.currentProjectId = id;
-      state.role = 'admin';
+      state.role = "admin";
       state.userName = userName;
       state.persistence.isDirty = true;
+    },
+
+    deleteProject: (state, action) => {
+      const filtered = Object.fromEntries(
+        Object.entries(state.projects).filter(
+          ([key]) => key !== state.currentProjectId,
+        ),
+      );
+      state.currentProjectId = Object.keys(state.projects)[0];
+      state.projects = filtered;
+      // console.log(filtered, "delete this project");
     },
 
     connectVault: (state, action) => {
@@ -106,6 +121,29 @@ export const lavaSlice = createSlice({
         state.persistence.isDirty = true;
       }
     },
+    deleteTask: (state, action) => {
+      const { taskId, columnId } = action.payload; // Pass columnId to avoid searching all columns
+      const project = state.projects[state.currentProjectId];
+
+      if (project) {
+        // 1. Remove from the tasks object
+        if (project.tasks[taskId]) {
+          delete project.tasks[taskId];
+        }
+
+        // 2. Remove from the specific column's taskIds array
+        const column = project.columns[columnId];
+        if (column) {
+          column.taskIds = column.taskIds.filter((id) => id !== taskId);
+        }
+
+        // 3. Mark state as dirty for sync
+        state.lastSynced = new Date().toISOString();
+        state.persistence.isDirty = true;
+
+        console.log("Deleted task:", taskId, "from column:", columnId);
+      }
+    },
 
     // --- PROPOSALS & MESH ---
     stageChange: (state, action) => {
@@ -113,23 +151,25 @@ export const lavaSlice = createSlice({
         id: `change-${Date.now()}`,
         type: action.payload.type,
         data: action.payload.data, // This now contains {taskId, sourceCol, destCol}
-        summary: action.payload.summary
+        summary: action.payload.summary,
       });
     },
 
     acceptProposal: (state, action) => {
       const proposalId = action.payload;
-      const proposal = state.proposals.find(p => p.id === proposalId);
+      const proposal = state.proposals.find((p) => p.id === proposalId);
       const project = state.projects[state.currentProjectId];
 
       if (proposal && project) {
-        proposal.changes.forEach(change => {
-          if (change.type === 'MOVE_TASK') {
+        proposal.changes.forEach((change) => {
+          if (change.type === "MOVE_TASK") {
             const { taskId, sourceCol, destCol } = change.data;
 
             // 1. Remove from source
             if (project.columns[sourceCol]) {
-              project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
+              project.columns[sourceCol].taskIds = project.columns[
+                sourceCol
+              ].taskIds.filter((id) => id !== taskId);
             }
 
             // 2. Add to destination
@@ -143,7 +183,7 @@ export const lavaSlice = createSlice({
         });
 
         // Remove proposal from queue and mark as dirty to broadcast to everyone
-        state.proposals = state.proposals.filter(p => p.id !== proposalId);
+        state.proposals = state.proposals.filter((p) => p.id !== proposalId);
         state.persistence.isDirty = true;
       }
     },
@@ -158,30 +198,8 @@ export const lavaSlice = createSlice({
     },
 
     rejectProposal: (state, action) => {
-      state.proposals = state.proposals.filter(p => p.id !== action.payload);
+      state.proposals = state.proposals.filter((p) => p.id !== action.payload);
     },
-
-    // acceptProposal: (state, action) => {
-    //   const proposalId = action.payload;
-    //   const proposal = state.proposals.find(p => p.id === proposalId);
-    //   const project = state.projects[state.currentProjectId];
-
-    //   if (proposal && project) {
-    //     proposal.changes.forEach(change => {
-    //       if (change.type === 'MOVE_TASK') {
-    //         const { taskId, sourceCol, destCol } = change.data;
-    //         // Filter out from source
-    //         project.columns[sourceCol].taskIds = project.columns[sourceCol].taskIds.filter(id => id !== taskId);
-    //         // Push to destination
-    //         project.columns[destCol].taskIds.push(taskId);
-    //       }
-    //     });
-
-    //     state.proposals = state.proposals.filter(p => p.id !== proposalId);
-    //     state.persistence.isDirty = true;
-    //     state.lastSynced = new Date().toISOString();
-    //   }
-    // },
 
     // --- SYSTEM & PERSISTENCE ---
     hydrateVault: (state) => {
@@ -191,9 +209,12 @@ export const lavaSlice = createSlice({
         try {
           const parsed = JSON.parse(saved);
           state.projects = parsed.projects || {};
-          state.userName = parsed.userName || '';
+          state.userName = parsed.userName || "";
           state.currentProjectId = parsed.currentProjectId || null;
-          state.role = parsed.role || 'unselected';
+          state.role = parsed.role || "unselected";
+          if (parsed.persistence) {
+            state.persistence = parsed.persistence;
+          }
         } catch (e) {
           console.error("LavaMesh: Hydration Failed", e);
         }
@@ -213,8 +234,8 @@ export const lavaSlice = createSlice({
     updateMeshStatus: (state, action) => {
       state.mesh.peersOnline = action.payload.count;
       state.mesh.syncHealth = action.payload.status;
-    }
-  }
+    },
+  },
 });
 
 export const {
@@ -222,6 +243,7 @@ export const {
   clearPendingChanges,
   setRole,
   createProject,
+  deleteProject,
   markAsSaved,
   hydrateVault,
   connectVault,
@@ -232,7 +254,8 @@ export const {
   rejectProposal,
   acceptProposal,
   selectProject,
-  setCurrentProject
+  setCurrentProject,
+  deleteTask,
 } = lavaSlice.actions;
 
 export default lavaSlice.reducer;

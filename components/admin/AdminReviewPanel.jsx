@@ -6,12 +6,9 @@ import { acceptProposal, rejectProposal } from "@/store/lavaSlice";
 
 export default function AdminReviewPanel({ onClose }) {
   const dispatch = useDispatch();
-  // We only need the proposals from the mesh
   const { proposals } = useSelector((state) => state.lava);
 
   const handleApprove = (proposalId) => {
-    // This dispatch updates the state AND sets isDirty: true
-    // Our BaseLayout / SocketBridge will handle the actual broadcast
     console.log(proposalId,proposals,"propose")
     dispatch(acceptProposal(proposalId));
   };

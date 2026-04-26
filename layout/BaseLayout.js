@@ -26,7 +26,7 @@ export default function BaseLayout({ children }) {
     const { projects, currentProjectId, role, persistence, myPendingChanges, userName } = useSelector((state) => state.lava);
     const project = projects[currentProjectId];
 
-    console.log(myPendingChanges, "pending changes")
+    console.log(persistence, "pending changes")
 
     // 2. Initial Hydration
     useEffect(() => {
@@ -48,7 +48,7 @@ export default function BaseLayout({ children }) {
                     projectId: currentProjectId,
                     data: project
                 });
-                dispatch(markAsSaved());
+                // dispatch(markAsSaved());
             }
         }
 
