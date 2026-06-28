@@ -26,7 +26,7 @@ export default function BaseLayout({ children }) {
     const { projects, currentProjectId, role, persistence, myPendingChanges, userName } = useSelector((state) => state.lava);
     const project = projects[currentProjectId];
 
-    console.log(persistence, "pending changes")
+    // console.log(persistence, "pending changes")
 
     // 2. Initial Hydration
     useEffect(() => {
@@ -80,7 +80,7 @@ export default function BaseLayout({ children }) {
 
     if (role === 'admin') {
         menuItems.push({ name: "Local Vault", href: "/vault", icon: <FolderLock size={20} /> });
-        menuItems.push({ name: "Lava Insurance", href: "/insurance", icon: <Database size={20} /> });
+        // menuItems.push({ name: "Lava Insurance", href: "/insurance", icon: <Database size={20} /> });
     }
 
     return (

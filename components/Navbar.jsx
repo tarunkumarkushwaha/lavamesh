@@ -99,7 +99,7 @@ const Navbar = () => {
                                         filteredProjects.map(p => <div key={p.id} className="text-center rounded-xl p-2 m-1 bg-slate-800">
                                             <p
                                                 // onClick={() => {
-                                                //     dispatch(selectProject(p.id));
+                                                //     selectProject(p.id);
                                                 // }}
                                                 className="text-slate-400 text-sm" >{p.name}</p>
                                         </div>)

@@ -24,7 +24,6 @@ export default function AdminDashboard() {
   const [isCreating, setIsCreating] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
 
-  // 1. Pull data safely from Redux
   const {
     projects,
     currentProjectId,
@@ -36,16 +35,14 @@ export default function AdminDashboard() {
   } = useSelector((state) => state.lava || {});
   const project = projects?.[currentProjectId];
 
-  // 2. Safe Hook Calls (Never pass undefined properties to hooks)
-  // const socket = useSocket(currentProjectId);
-
-  // console.log(projects,"the mesh")
-
-  // 3. Keep a fresh reference of the project for the socket to avoid re-rendering
   const projectRef = useRef(project);
   useEffect(() => {
     projectRef.current = project;
   }, [project]);
+
+  // useEffect(() => {
+  //   console.log("currentProjectId")
+  // }, [currentProjectId]);
 
   // 4. Calculate dynamic stats safely
   const totalTasks = Object.keys(project?.tasks || {}).length;
